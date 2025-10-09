@@ -1,0 +1,10 @@
+# Instana Agent 配置
+instana_host: "ingress.your-instana-domain.com"   # Instana 后端地址
+instana_key: "YOUR_AGENT_KEY"                     # Instana Agent 密钥
+instana_port: 443                                 # Instana 连接端口
+
+# RPM 文件路径
+instana_rpm_path: "/instanasw/agents/agents/instana-agent-static-j9-20251007-1723.x86_64.rpm"
+
+# 安装后验证设置
+service_name: "instana-agent"                     # 服务名称
