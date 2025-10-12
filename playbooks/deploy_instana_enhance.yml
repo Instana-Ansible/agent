@@ -1,0 +1,141 @@
+# playbooks/deploy_instana_enhanced.yml
+---
+- name: Enhanced Deployment of Instana Linux Agent
+  hosts: instana_agents
+  become: yes
+  vars:
+    # Define variables for flexibility
+    agent_install_dir: /root/instana-agent
+    agent_rpm_file: "instana-agent-static-j9-20251007-1723.x86_64.rpm"
+    config_source: /root/instanasw/com.instana.agent.main.sender.Backend.cfg
+    config_dest: /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend.cfg
+    backup_config: "{{ config_dest }}.bak"
+  
+  tasks:
+    # 1. Create installation directory
+    - name: Create agent installation directory
+      file:
+        path: "{{ agent_install_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: '0700'
+      
+    # 2. Copy RPM file to target host
+    - name: Copy agent RPM file
+      copy:
+        src: "{{ instana_rpm_path }}"
+        dest: "{{ agent_install_dir }}/"
+        mode: '0644'
+      
+    # 3. Check if agent is already installed
+    - name: Check Instana Agent installation status
+      shell: rpm -q instana-agent
+      register: agent_installed
+      ignore_errors: yes
+      changed_when: false
+      
+    # 4. Install agent only if not already installed
+    - name: Install Instana Agent (if not installed)
+      command: rpm -ivh "{{ agent_install_dir }}/{{ agent_rpm_file }}"
+      when: agent_installed.rc != 0
+      register: install_result
+      ignore_errors: yes
+      
+    # 5. Display installation status
+    - name: Display installation status
+      debug:
+        msg: |
+          {{ '✅ Instana Agent installed successfully' if install_result.rc == 0 else
+             '⚠️ Agent already installed, skipping installation' if agent_installed.rc == 0 else
+             '❌ Installation failed: ' ~ install_result.stderr }}
+      when: agent_installed.rc != 0 or install_result is defined
+      
+    # 6. Backup existing configuration file
+    - name: Backup existing config file
+      block:
+        - name: Verify existence of current config file
+          stat:
+            path: "{{ config_dest }}"
+          register: config_file
+          
+        - name: Backup config file
+          command: >
+            mv "{{ config_dest }}"
+            "{{ backup_config }}"
+          args:
+            creates: "{{ backup_config }}"
+          when: config_file.stat.exists
+          
+        - name: Skip backup if config file missing
+          debug:
+            msg: "No existing config file to backup"
+          when: not config_file.stat.exists
+      rescue:
+        - name: Handle backup errors
+          debug:
+            msg: "⚠️ Backup failed: {{ backup_result.stderr }}"
+          when: backup_result is defined
+      
+    # 7. Copy new configuration file
+    - name: Deploy new configuration file
+      block:
+        - name: Verify existence of new config file
+          stat:
+            path: "{{ config_source }}"
+          register: new_config
+          
+        - name: Copy configuration file
+          copy:
+            src: "{{ config_source }}"
+            dest: "{{ config_dest }}"
+            owner: root
+            group: root
+            mode: '0600'
+          when: new_config.stat.exists
+          notify: restart instana-agent
+          
+        - name: Fail if config file missing
+          fail:
+            msg: "❌ New config file {{ config_source }} does not exist"
+          when: not new_config.stat.exists
+      rescue:
+        - name: Handle configuration deployment errors
+          debug:
+            msg: "⚠️ Config deployment failed: {{ copy_result.stderr }}"
+          when: copy_result is defined
+          
+    # 8. Ensure service is running and enabled
+    - name: Verify Instana Agent service status
+      systemd:
+        name: instana-agent
+        state: started
+        enabled: yes
+        daemon_reload: yes
+      register: service_status
+      
+    # 9. Display deployment summary
+    - name: Display deployment summary
+      debug:
+        msg: |
+          Deployment Summary:
+          - Installation: {{ 'Success' if agent_installed.rc == 0 or (install_result is defined and install_result.rc == 0) else 'Failed' }}
+          - Config Backup: {{ 'Success' if config_file.stat.exists and config_file.stat.exists else 'Skipped' }}
+          - Config Update: {{ 'Success' if new_config.stat.exists else 'Failed' }}
+          - Service Status: {{ service_status.status }}
+          
+  handlers:
+    # Handler to restart agent service
+    - name: restart instana-agent
+      systemd:
+        name: instana-agent
+        state: restarted
+        daemon_reload: yes
+      register: restart_result
+      
+    # Verify service after restart
+    - name: Verify service status after restart
+      systemd:
+        name: instana-agent
+        state: started
+      when: restart_result is changed
