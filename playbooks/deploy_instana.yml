@@ -1,11 +1,11 @@
 # playbooks/deploy_instana.yml
 ---
-- name: 部署 Instana Agent 三步流程
+- name: Deploy Instana Linux Agent
   hosts: instana_agents
-  become: yes  # 第一步：执行 sudo su - 获取 root 权限
+  become: yes  # sudo su - get root access
   
   tasks:
-    # 第二步：在目标机器 /root 下创建 instana-agent 文件夹
+    # Create instana-agent folder under /root on target host
     - name: 创建安装目录
       file:
         path: /root/instana-agent
@@ -14,9 +14,16 @@
         group: root
         mode: '0700'
     
-    # 第三步：复制 RPM 文件到 /root/instana-agent 文件夹
+    # Copy Instana agent RPM to /root/instana-agent 
     - name: 复制 RPM 文件
       copy:
         src: "{{ instana_rpm_path }}"
         dest: /root/instana-agent/
         mode: '0644'
+
+    # Install Instana agent 
+    - name: 安装 Instana Agent
+      shell: "rpm -ivh /root/instana-agent/instana-agent-static-j9-20251007-1723.x86_64.rpm"
+      args:
+        warn: false  
+      register: install_result
