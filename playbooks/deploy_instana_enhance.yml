@@ -42,15 +42,6 @@
       register: install_result
       ignore_errors: yes
       
-    # 5. Display installation status
-    - name: Display installation status
-      debug:
-        msg: |
-          {{ '✅ Instana Agent installed successfully' if install_result.rc == 0 else
-             '⚠️ Agent already installed, skipping installation' if agent_installed.rc == 0 else
-             '❌ Installation failed: ' ~ install_result.stderr }}
-      when: agent_installed.rc != 0 or install_result is defined
-      
     # 6. Backup existing configuration file
     - name: Backup existing config file
       block:
