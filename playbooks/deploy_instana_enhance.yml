@@ -92,18 +92,7 @@
             owner: root
             group: root
             mode: '0600'
-          when: new_config.stat.exists
-          notify: restart instana-agent
-          
-        - name: Fail if config file missing
-          fail:
-            msg: "❌ New config file {{ config_source }} does not exist"
-          when: not new_config.stat.exists
-      rescue:
-        - name: Handle configuration deployment errors
-          debug:
-            msg: "⚠️ Config deployment failed: {{ copy_result.stderr }}"
-          when: copy_result is defined
+          notify: restart instana-agent        
           
     # 8. Ensure service is running and enabled
     - name: Verify Instana Agent service status
@@ -113,16 +102,6 @@
         enabled: yes
         daemon_reload: yes
       register: service_status
-      
-    # 9. Display deployment summary
-    - name: Display deployment summary
-      debug:
-        msg: |
-          Deployment Summary:
-          - Installation: {{ 'Success' if agent_installed.rc == 0 or (install_result is defined and install_result.rc == 0) else 'Failed' }}
-          - Config Backup: {{ 'Success' if config_file.stat.exists and config_file.stat.exists else 'Skipped' }}
-          - Config Update: {{ 'Success' if new_config.stat.exists else 'Failed' }}
-          - Service Status: {{ service_status.status }}
           
   handlers:
     # Handler to restart agent service
