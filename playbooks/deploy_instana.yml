@@ -6,7 +6,7 @@
   
   tasks:
     # Create instana-agent folder under /root on target host
-    - name: 创建安装目录
+    - name: Create agent folder
       file:
         path: /root/instana-agent
         state: directory
@@ -15,15 +15,14 @@
         mode: '0700'
     
     # Copy Instana agent RPM to /root/instana-agent 
-    - name: 复制 RPM 文件
+    - name: Copy agent RPM file
       copy:
         src: "{{ instana_rpm_path }}"
         dest: /root/instana-agent/
         mode: '0644'
 
     # Install Instana agent 
-    - name: 安装 Instana Agent
-      shell: "rpm -ivh /root/instana-agent/instana-agent-static-j9-20251007-1723.x86_64.rpm"
-      args:
-        warn: false  
+    - name: Install Instana Agent
+      command: rpm -ivh /root/instana-agent/instana-agent-static-j9-20251007-1723.x86_64.rpm
       register: install_result
+      ignore_errors: yes  
