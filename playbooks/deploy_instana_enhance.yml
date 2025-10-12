@@ -30,7 +30,7 @@
       
     # 3. Check if agent is already installed
     - name: Check Instana Agent installation status
-      shell: rpm -q instana-agent
+      shell: rpm -qa | grep instana-agent
       register: agent_installed
       ignore_errors: yes
       changed_when: false
