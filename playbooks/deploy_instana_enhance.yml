@@ -10,6 +10,9 @@
     config_source: /root/instanasw/com.instana.agent.main.sender.Backend.cfg
     config_dest: /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend.cfg
     backup_config: "{{ config_dest }}.bak"
+    config_source_zone: /root/instanasw/configuration.yaml
+    config_dest_zone: /opt/instana/agent/etc/instana/configuration.yaml
+    backup_config_zone: "{{ config_dest_zone }}.bak"
   
   tasks:
     # 1. Create installation directory
@@ -57,17 +60,7 @@
           args:
             creates: "{{ backup_config }}"
           when: config_file.stat.exists
-          
-        - name: Skip backup if config file missing
-          debug:
-            msg: "No existing config file to backup"
-          when: not config_file.stat.exists
-      rescue:
-        - name: Handle backup errors
-          debug:
-            msg: "⚠️ Backup failed: {{ backup_result.stderr }}"
-          when: backup_result is defined
-      
+           
     # 7. Copy new configuration file
     - name: Deploy new configuration file
       block:
@@ -84,8 +77,41 @@
             group: root
             mode: '0600'
           notify: restart instana-agent        
+
+    # 8. Backup existing zone configuration file
+    - name: Backup existing zone config file
+      block:
+        - name: Verify existence of current zone config file
+          stat:
+            path: "{{ config_dest_zone }}"
+          register: config_file_zone
           
-    # 8. Ensure service is running and enabled
+        - name: Backup config file
+          command: >
+            mv "{{ config_dest_zone }}"
+            "{{ backup_config_zone }}"
+          args:
+            creates: "{{ backup_config_zone }}"
+          when: config_file_zone.stat.exists
+      
+    # 9. Copy new zone configuration file
+    - name: Deploy new zone configuration file
+      block:
+        - name: Verify existence of new zone config file
+          stat:
+            path: "{{ config_source_zone }}"
+          register: new_config_zone
+          
+        - name: Copy configuration file
+          copy:
+            src: "{{ config_source_zone }}"
+            dest: "{{ config_dest_zone }}"
+            owner: root
+            group: root
+            mode: '0600'
+          notify: restart instana-agent      
+          
+    # 10. Ensure service is running and enabled
     - name: Verify Instana Agent service status
       systemd:
         name: instana-agent

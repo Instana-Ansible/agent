@@ -44,6 +44,24 @@
         group: root
         mode: '0600'
       notify: restart instana-agent
+
+    # Backup zone Config file
+    - name: Backup zone Config file
+      command: >
+        mv /opt/instana/agent/etc/instana/configuration.yaml
+        /opt/instana/agent/etc/instana/configuration.yaml.bak
+      args:
+        creates: /opt/instana/agent/etc/instana/configuration.yaml.bak
+        
+    # Copy zone config file
+    - name: Copy zone config file
+      copy:
+        src: /root/instanasw/configuration.yaml
+        dest: /opt/instana/agent/etc/instana/configuration.yaml
+        owner: root
+        group: root
+        mode: '0600'
+      notify: restart instana-agent
         
   handlers:
     # restart instana-agent service
