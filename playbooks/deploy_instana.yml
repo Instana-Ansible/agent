@@ -26,3 +26,29 @@
       command: rpm -ivh /root/instana-agent/instana-agent-static-j9-20251007-1723.x86_64.rpm
       register: install_result
       ignore_errors: yes  
+
+    # Backup Config file
+    - name: Backup Config file
+      command: >
+        mv /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend.cfg
+        /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend.cfg.bak
+      args:
+        creates: /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend.cfg.bak
+        
+    # Copy config file
+    - name: Copy config file
+      copy:
+        src: /root/instanasw/com.instana.agent.main.sender.Backend.cfg
+        dest: /opt/instana/agent/etc/instana/com.instana.agent.main.sender.Backend.cfg
+        owner: root
+        group: root
+        mode: '0600'
+      notify: restart instana-agent
+        
+  handlers:
+    # restart instana-agent service
+    - name: restart instana-agent
+      systemd:
+        name: instana-agent
+        state: restarted
+        daemon_reload: yes
